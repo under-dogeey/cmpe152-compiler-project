@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "lexer.h"
+#include "parser.h"
 
 static std::string tokenTypeName(TokenType type)
 {
@@ -72,6 +73,22 @@ int main()
     std::cout << "Tokens from lexical analyzer:\n";
     const std::vector<Token> tokens = lexer.tokenizeAll();
     printTokens(tokens);
+
+    Parser parser(tokens);
+
+    parser.parseProgram();
+
+    if (parser.hasErrors())
+    {
+    std::cout << "Syntax Errors:\n";
+    parser.printErrors();
+    }
+    else
+    {
+    std::cout << "Generated C++ Code:\n";
+    std::cout << parser.getGeneratedCode() << std::endl;
+    }
+
 
     return 0;
 }
