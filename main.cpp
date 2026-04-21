@@ -76,17 +76,23 @@ int main()
 
     Parser parser(tokens);
 
-    parser.parseProgram();
+    Program program = parser.parseProgram();
 
-    if (parser.hasErrors())
+    if (!parser.getErrors().empty())
     {
     std::cout << "Syntax Errors:\n";
-    parser.printErrors();
+
+    const std::vector<ParseError>& errors = parser.getErrors();
+    for (std::size_t i = 0; i < errors.size(); i++) {
+        std::cout << "Line " << errors[i].line
+                  << ", Column " << errors[i].column
+                  << ": " << errors[i].message << "\n";
+        }
     }
     else
     {
     std::cout << "Generated C++ Code:\n";
-    std::cout << parser.getGeneratedCode() << std::endl;
+    std::cout << generateCppProgram(program) << std::endl;
     }
 
 
