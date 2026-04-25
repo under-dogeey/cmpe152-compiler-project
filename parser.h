@@ -9,6 +9,7 @@
 struct ParseError {
     int line;
     int column;
+    std::string type;
     std::string message;
 };
 
@@ -97,7 +98,7 @@ private:
     bool match(TokenType type);
     bool matchAny(const std::vector<TokenType>& types);
 
-    void addError(const Token& token, const std::string& message);
+    void addError(const Token& token, const std::string& type, const std::string& message);
     void synchronize();
     void skipNewlines();
 

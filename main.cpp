@@ -86,6 +86,7 @@ int main()
     for (std::size_t i = 0; i < errors.size(); i++) {
         std::cout << "Line " << errors[i].line
                   << ", Column " << errors[i].column
+                  << " [" << errors[i].type << "]"
                   << ": " << errors[i].message << "\n";
         }
     }

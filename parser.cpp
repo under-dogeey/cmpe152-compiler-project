@@ -48,6 +48,45 @@ std::string escapeCppString(const std::string& s)
     return out;
 }
 
+std::string tokenTypeName(TokenType type)
+{
+    switch (type) {
+    case TokenType::IDENTIFIER:
+        return "IDENTIFIER";
+    case TokenType::NUMBER:
+        return "NUMBER";
+    case TokenType::STRING:
+        return "STRING";
+    case TokenType::PRINT:
+        return "PRINT";
+    case TokenType::PLUS:
+        return "PLUS";
+    case TokenType::MINUS:
+        return "MINUS";
+    case TokenType::STAR:
+        return "STAR";
+    case TokenType::SLASH:
+        return "SLASH";
+    case TokenType::PERCENT:
+        return "PERCENT";
+    case TokenType::ASSIGN:
+        return "ASSIGN";
+    case TokenType::LPAREN:
+        return "LPAREN";
+    case TokenType::RPAREN:
+        return "RPAREN";
+    case TokenType::COMMA:
+        return "COMMA";
+    case TokenType::NEWLINE:
+        return "NEWLINE";
+    case TokenType::END_OF_FILE:
+        return "END_OF_FILE";
+    case TokenType::ERROR:
+        return "ERROR";
+    }
+    return "UNKNOWN";
+}
+
 } // namespace
 
 std::string NumberExpr::toCpp() const
@@ -146,23 +185,29 @@ bool Parser::matchAny(const std::vector<TokenType>& types)
     return false;
 }
 
-void Parser::addError(const Token& token, const std::string& message)
+void Parser::addError(const Token& token, const std::string& type, const std::string& message)
 {
     ParseError error;
     error.line = token.line;
     error.column = token.column;
+    error.type = type;
     error.message = message;
     errors.push_back(error);
 }
 
 void Parser::synchronize()
 {
+    bool consumedAny = false;
     while (!isAtEnd()) {
         if (check(TokenType::NEWLINE)) {
             advance();
             return;
         }
+        if (consumedAny && (check(TokenType::PRINT) || check(TokenType::IDENTIFIER))) {
+            return;
+        }
         advance();
+        consumedAny = true;
     }
 }
 
@@ -179,7 +224,7 @@ Program Parser::parseProgram()
 
     while (!isAtEnd()) {
         if (check(TokenType::ERROR)) {
-            addError(peek(), peek().lexeme);
+            addError(peek(), "LexicalError", peek().lexeme);
             advance();
             synchronize();
             skipNewlines();
@@ -194,7 +239,7 @@ Program Parser::parseProgram()
         if (match(TokenType::NEWLINE)) {
             skipNewlines();
         } else if (!isAtEnd()) {
-            addError(peek(), "Expected end of line after statement");
+            addError(peek(), "MissingNewlineError", "Expected end of line after statement, but found '" + tokenTypeName(peek().type) + "'");
             synchronize();
             skipNewlines();
         }
@@ -212,7 +257,11 @@ std::unique_ptr<Stmt> Parser::parseStatement()
         return parseAssignment();
     }
 
-    addError(peek(), "Expected a statement");
+    if (check(TokenType::ERROR)) {
+        addError(peek(), "LexicalError", peek().lexeme);
+    } else {
+        addError(peek(), "StatementError", "Expected a statement, but found '" + tokenTypeName(peek().type) + "'");
+    }
     synchronize();
     return std::unique_ptr<Stmt>();
 }
@@ -222,7 +271,7 @@ std::unique_ptr<Stmt> Parser::parseAssignment()
     Token name = advance();
 
     if (!match(TokenType::ASSIGN)) {
-        addError(peek(), "Expected '=' after identifier");
+        addError(peek(), "AssignmentSyntaxError", "Expected '=' after identifier '" + name.lexeme + "', but found '" + tokenTypeName(peek().type) + "'");
         synchronize();
         return std::unique_ptr<Stmt>();
     }
@@ -240,7 +289,7 @@ std::unique_ptr<Stmt> Parser::parsePrintStatement()
     advance();
 
     if (!match(TokenType::LPAREN)) {
-        addError(peek(), "Expected '(' after print");
+        addError(peek(), "PrintSyntaxError", "Expected '(' after print, but found '" + tokenTypeName(peek().type) + "'");
         synchronize();
         return std::unique_ptr<Stmt>();
     }
@@ -261,7 +310,7 @@ std::unique_ptr<Stmt> Parser::parsePrintStatement()
     } while (match(TokenType::COMMA));
 
     if (!match(TokenType::RPAREN)) {
-        addError(peek(), "Expected ')' after print arguments");
+        addError(peek(), "PrintSyntaxError", "Expected ')' after print arguments, but found '" + tokenTypeName(peek().type) + "'");
         synchronize();
         return std::unique_ptr<Stmt>();
     }
@@ -340,14 +389,19 @@ std::unique_ptr<Expr> Parser::parsePrimary()
             return std::unique_ptr<Expr>();
         }
         if (!match(TokenType::RPAREN)) {
-            addError(peek(), "Expected ')' after expression");
+            addError(peek(), "ParenthesisError", "Expected ')' after expression, but found '" + tokenTypeName(peek().type) + "'");
             return std::unique_ptr<Expr>();
         }
         return expr;
     }
 
     if (!isAtEnd()) {
-        addError(peek(), "Expected expression");
+        if (check(TokenType::ERROR)) {
+            addError(peek(), "LexicalError", peek().lexeme);
+            advance();
+        } else {
+            addError(peek(), "ExpressionSyntaxError", "Expected expression, but found '" + tokenTypeName(peek().type) + "'");
+        }
     }
     return std::unique_ptr<Expr>();
 }
